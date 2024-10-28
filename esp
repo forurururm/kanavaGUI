@@ -1,0 +1,114 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local function CreateBillboard(character)
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+
+    local player = Players:GetPlayerFromCharacter(character)
+    if not player then return end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "PlayerESP"
+    billboard.Parent = character:FindFirstChild("Head")
+    billboard.StudsOffset = Vector3.new(0, 4, 0)
+    billboard.AlwaysOnTop = true
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Parent = billboard
+    nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    nameLabel.Position = UDim2.new(0, 0, 0, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLabel.TextStrokeTransparency = 0.5
+    nameLabel.TextTransparency = 0.1
+    nameLabel.TextScaled = true
+
+    local healthBarBackground = Instance.new("Frame")
+    healthBarBackground.Parent = billboard
+    healthBarBackground.Size = UDim2.new(0.8, 0, 0.15, 0)
+    healthBarBackground.Position = UDim2.new(0.1, 0, 0.6, 0)
+    healthBarBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    healthBarBackground.BorderSizePixel = 0
+
+    local healthBar = Instance.new("Frame")
+    healthBar.Parent = healthBarBackground
+    healthBar.Size = UDim2.new(humanoid.Health / humanoid.MaxHealth, 0, 1, 0)
+    healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    healthBar.BorderSizePixel = 0
+
+    local function UpdateNameDistanceAndSize()
+        local localPlayer = Players.LocalPlayer
+        if localPlayer and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (localPlayer.Character.HumanoidRootPart.Position - character.HumanoidRootPart.Position).Magnitude
+            nameLabel.Text = player.Name .. " | " .. math.floor(distance) .. "m"
+            local scale = math.clamp(distance / 50, 1, 3)
+            billboard.Size = UDim2.new(6 * scale, 0, 2 * scale, 0)
+        end
+    end
+
+    RunService.RenderStepped:Connect(UpdateNameDistanceAndSize)
+
+    humanoid.HealthChanged:Connect(function(newHealth)
+        local healthRatio = newHealth / humanoid.MaxHealth
+        healthBar.Size = UDim2.new(healthRatio, 0, 1, 0)
+        healthBar.BackgroundColor3 = newHealth > 50 and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    end)
+end
+
+local function AddESPToCharacter(character)
+    if character:FindFirstChild("PlayerESP") then
+        character.PlayerESP:Destroy()
+    end
+
+    -- Удаление предыдущего выделения, если оно есть
+    local existingHighlight = character:FindFirstChild("Highlight")
+    if existingHighlight then
+        existingHighlight:Destroy()
+    end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "Highlight"
+    highlight.Parent = character
+    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+
+    CreateBillboard(character)
+end
+
+local function SetupPlayerESP(player)
+    player.CharacterAdded:Connect(function(character)
+        AddESPToCharacter(character)
+    end)
+
+    if player.Character then
+        AddESPToCharacter(player.Character)
+    end
+end
+
+local function UpdateAllESP()
+    while true do
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= Players.LocalPlayer then
+                if player.Character then
+                    AddESPToCharacter(player.Character)
+                end
+            end
+        end
+        wait(5)  -- Обновление каждые 5 секунд
+    end
+end
+
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= Players.LocalPlayer then
+        SetupPlayerESP(player)
+    end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    if player ~= Players.LocalPlayer then
+        SetupPlayerESP(player)
+    end
+end)
+
+UpdateAllESP()  -- Запуск функции автообновления
